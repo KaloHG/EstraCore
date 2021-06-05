@@ -1,0 +1,5 @@
+ChatConfig:
+  #Logs Direct Messages in Console
+  logMessages: true
+  #Logs Group Messages in Console
+  logGroupMessages: true

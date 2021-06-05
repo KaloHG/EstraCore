@@ -1,0 +1,8 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="EstraCore:jar">
+    <output-path>$PROJECT_DIR$/out/artifacts/EstraCore_jar</output-path>
+    <root id="archive" name="EstraCore.jar">
+      <element id="module-output" name="EstraCore" />
+    </root>
+  </artifact>
+</component>
