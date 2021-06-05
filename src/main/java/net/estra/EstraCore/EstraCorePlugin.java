@@ -5,6 +5,7 @@ import net.estra.EstraCore.command.GroupCommand;
 import net.estra.EstraCore.command.MsgCommand;
 import net.estra.EstraCore.listener.ChatListener;
 import net.estra.EstraCore.manager.GroupManager;
+import net.estra.EstraCore.manager.ReinforcementManager;
 import vg.civcraft.mc.civmodcore.ACivMod;
 
 import java.util.logging.Logger;
@@ -19,13 +20,17 @@ public class EstraCorePlugin extends ACivMod {
 
     public EstraCoreConfig configManager;
 
+    public ReinforcementManager reinManager;
+
     @Override
     public void onEnable() {
         instance = this;
-        this.logger = getLogger();
-        this.groupManager = new GroupManager();
         saveDefaultConfig();
         reloadConfig();
+        this.logger = getLogger();
+        this.configManager = new EstraCoreConfig(this.getConfig());
+        this.groupManager = new GroupManager();
+        this.reinManager = new ReinforcementManager();
 
         logger.info("EstraCore is starting up.");
         logger.info("-OEDO-OEDO-OEDO-OEDO-OEDO-");
@@ -34,6 +39,10 @@ public class EstraCorePlugin extends ACivMod {
         this.getServer().getPluginCommand("group").setExecutor(new GroupCommand());
         this.getServer().getPluginCommand("exit").setExecutor(new ExitCommand());
         this.getServer().getPluginCommand("msg").setExecutor(new MsgCommand());
+
+        //load our types.
+        logger.info("Loading reinforcement types.");
+        reinManager.setActiveTypes(configManager.getLoadedTypes());
     }
 
     @Override
@@ -49,4 +58,6 @@ public class EstraCorePlugin extends ACivMod {
     public GroupManager getGroupManager() { return groupManager; }
 
     public EstraCoreConfig getConfigManager() { return configManager; }
+
+    public ReinforcementManager getReinManager() { return reinManager; }
 }
