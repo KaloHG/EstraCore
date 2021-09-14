@@ -1,10 +1,12 @@
 package net.estra.EstraCore.listener;
 
 import net.estra.EstraCore.EstraCorePlugin;
+import net.estra.EstraCore.model.Events.PlayerDmEvent;
 import net.estra.EstraCore.model.Group;
 import net.estra.EstraCore.model.chat.ChatMode;
 import net.estra.EstraCore.model.chat.DirectChat;
 import net.estra.EstraCore.model.chat.GlobalChat;
+import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
@@ -33,7 +35,8 @@ public class ChatListener implements Listener {
                     //Modify username in chat message.
                     // [GROUP] Player
                     String newName = ChatColor.DARK_GRAY + "[" + ChatColor.YELLOW + playerGroup.getName() + ChatColor.DARK_GRAY + "] " + player.getDisplayName();
-                    event.setFormat(String.format(newName, event.getMessage()));
+                    Bukkit.broadcastMessage(newName + ChatColor.DARK_GRAY + ": " + ChatColor.WHITE + event.getMessage());
+                    event.setCancelled(true);
                 }
                 return;
             case ("Direct"):
@@ -50,6 +53,7 @@ public class ChatListener implements Listener {
                 Player reciever = dm.getReciever().getPlayer();
                 player.sendMessage(ChatColor.LIGHT_PURPLE + "To " + reciever.getDisplayName() + "» " + event.getMessage());
                 reciever.sendMessage(ChatColor.LIGHT_PURPLE + "From " + player.getDisplayName() + "» " + event.getMessage());
+                Bukkit.getPluginManager().callEvent(new PlayerDmEvent(player, reciever, event.getMessage()));
                 if(EstraCorePlugin.instance.getConfigManager().isMessageLoggingEnabled()) {
                     EstraCorePlugin.instance.getLogger().info("[DM] " + player.getDisplayName() + " to " + reciever.getName() + ", msg: " + event.getMessage());
                 }

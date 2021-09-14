@@ -51,6 +51,15 @@ public class Group {
         return members.containsKey(player);
     }
 
+    public OfflinePlayer getOwner() {
+        for(OfflinePlayer player : getMembers()) {
+            if(members.get(player).equals(Rank.OWNER)) {
+                return player;
+            }
+        }
+        return null;
+    }
+
     public boolean setMemberRank(OfflinePlayer player, Rank rank) {
         if(!members.containsKey(player)) {
             return false;

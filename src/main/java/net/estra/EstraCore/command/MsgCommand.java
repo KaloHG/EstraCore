@@ -1,6 +1,7 @@
 package net.estra.EstraCore.command;
 
 import net.estra.EstraCore.EstraCorePlugin;
+import net.estra.EstraCore.model.Events.PlayerDmEvent;
 import net.estra.EstraCore.model.chat.DirectChat;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -48,6 +49,7 @@ public class MsgCommand implements CommandExecutor {
             if(EstraCorePlugin.instance.getConfigManager().isMessageLoggingEnabled()) {
                 EstraCorePlugin.instance.getLogger().info("[DM] " + player.getDisplayName() + " to " + reciever.getName() + ", msg: " + msg);
             }
+            Bukkit.getPluginManager().callEvent(new PlayerDmEvent(player, reciever, msg));
             return true;
         }
         return false;

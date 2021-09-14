@@ -7,16 +7,22 @@ import net.estra.EstraCore.model.chat.GlobalChat;
 import net.estra.EstraCore.model.chat.GroupChat;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import vg.civcraft.mc.namelayer.GroupManager;
+import vg.civcraft.mc.namelayer.NameAPI;
+import vg.civcraft.mc.namelayer.RunnableOnGroup;
 
-import java.util.Arrays;
-import java.util.Locale;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class GroupCommand implements CommandExecutor {
+
+    List<UUID> waitingConfirms = new ArrayList<>();
+
     @Override
     public boolean onCommand(CommandSender commandSender, Command command, String s, String[] args) {
         if(!(commandSender instanceof Player)) {
@@ -52,15 +58,59 @@ public class GroupCommand implements CommandExecutor {
                 //if player is already in a group, we don't want to reference it.
                 if(group != null) { player.sendMessage(ChatColor.RED + "You are already in a group!"); return true; }
                 String groupName = args[1];
+                vg.civcraft.mc.namelayer.group.Group g = new vg.civcraft.mc.namelayer.group.Group(groupName, NameAPI.getUUID(player.getName()), false, null, -1);
+                NameAPI.getGroupManager().createGroupAsync(g, new RunnableOnGroup() {
+                    @Override
+                    public void run() {
+                        Player p = null;
+                        p = Bukkit.getPlayer(NameAPI.getUUID(player.getName()));
+                        vg.civcraft.mc.namelayer.group.Group g = getGroup();
+                        if (p != null) {
+                            if (g.getGroupId() == -1) { // failure
+                                p.sendMessage(ChatColor.RED + "That group is already taken or creation failed.");
+                                return;
+                            }
+                            p.sendMessage(ChatColor.GREEN + "Namelayer group " + g.getName() + " was successfully created.");
+                        } else {
+                            EstraCorePlugin.instance.getLogger().info("Group " + g.getName() + " creation is complete, resulting in group id: "
+                                    + g.getGroupId());
+                        }
+                    }
+                    }, false);
+                Bukkit.getScheduler().runTaskLater(EstraCorePlugin.instance, new Runnable() {
+                    @Override
+                    public void run() {
+                        NameAPI.getGroupManager().getGroup(groupName).setDefaultGroup(player.getUniqueId());
+                    }
+                }, 40);
                 EstraCorePlugin.instance.getGroupManager().createGroup(groupName, player);
                 player.sendMessage(ChatColor.GREEN + "Successfully created group " + groupName + ".");
                 return true;
             case("delete"):
                 if(group == null) { player.sendMessage(ChatColor.RED + "You aren't in a group."); return true; }
+                Rank rank0 = group.getMemberRank(player);
+                if(rank0 != Rank.OWNER) { player.sendMessage(ChatColor.RED + "You must be the owner of a group to delete the group."); return true; }
+                player.sendMessage(ChatColor.RED + "If you really want to delete this group, type " + ChatColor.GREEN + "/group confirm "
+                + ChatColor.RED + " in " + ChatColor.YELLOW + "15 Seconds");
+                waitingConfirms.add(player.getUniqueId());
+                Bukkit.getScheduler().runTaskLater(EstraCorePlugin.instance, new Runnable() {
+                    @Override
+                    public void run() {
+                        waitingConfirms.remove(player.getUniqueId());
+                    }
+                }, 300);
+                return true;
+            case("confirm"):
+                if(group == null) { player.sendMessage(ChatColor.RED + "You aren't in a group."); return true; }
                 Rank rank = group.getMemberRank(player);
                 if(rank != Rank.OWNER) { player.sendMessage(ChatColor.RED + "You must be the owner of a group to delete the group."); return true; }
                 //Nothing else to do but have the group be removed from the group manager.
+                if(!waitingConfirms.contains(player.getUniqueId())) {
+                    player.sendMessage(ChatColor.RED + "There was no pending group deletion request.");
+                    return true;
+                }
                 EstraCorePlugin.instance.getGroupManager().removeGroup(group);
+                NameAPI.getGroupManager().deleteGroup(group.getName());
                 group.sendGroupMessage("SYSTEM", ChatColor.RED + "This group has been disbanded.");
                 player.sendMessage(ChatColor.GREEN + "Group was deleted.");
                 return true;
@@ -81,6 +131,8 @@ public class GroupCommand implements CommandExecutor {
                 if(group != null) { player.sendMessage(ChatColor.RED + "You are already in a group!"); return true; }
                 Group join = EstraCorePlugin.instance.getGroupManager().getPendingInvite(player);
                 if(join == null) { player.sendMessage(ChatColor.RED + "You weren't invited to any groups!"); return true; }
+                NameAPI.getGroupManager().getGroup(join.getName()).addMember(player.getUniqueId(), GroupManager.PlayerType.MODS);
+                NameAPI.getGroupManager().getGroup(group.getName()).setDefaultGroup(player.getUniqueId());
                 join.addMember(player, Rank.MEMBER);
                 join.sendGroupMessage("SYSTEM" ,ChatColor.YELLOW + player.getDisplayName() + ChatColor.GREEN + " has joined the group!");
                 EstraCorePlugin.instance.getGroupManager().removePendingInvite(player);
@@ -115,6 +167,9 @@ public class GroupCommand implements CommandExecutor {
                 if(promote == null) { player.sendMessage(ChatColor.RED + "The player you used either does not exist or is not online!"); return true; }
                 if(!group.hasMember(promote)) { player.sendMessage(ChatColor.RED + "That player is not in your group!"); return true; }
                 if(group.getMemberRank(promote) == Rank.OWNER || group.getMemberRank(promote) == Rank.OFFICER) { player.sendMessage(ChatColor.RED + "That player cannot be reported!"); return true; }
+                NameAPI.getGroupManager().getGroup(group.getName()).removeMember(promote.getUniqueId());
+                NameAPI.getGroupManager().getGroup(group.getName()).addMember(promote.getUniqueId(), GroupManager.PlayerType.ADMINS);
+                NameAPI.getGroupManager().getGroup(group.getName()).setDefaultGroup(player.getUniqueId());
                 group.setMemberRank(promote, Rank.OFFICER);
                 promote.sendMessage(ChatColor.GREEN + "You have been promoted to an officer in your group!");
                 player.sendMessage(ChatColor.GREEN + "Successfully promoted " + promote.getDisplayName() + ".");
@@ -128,6 +183,9 @@ public class GroupCommand implements CommandExecutor {
                 if(demote == null) { player.sendMessage(ChatColor.RED + "The player you used either does not exist or is not online!"); return true; }
                 if(!group.hasMember(demote)) { player.sendMessage(ChatColor.RED + "That player is not in your group!"); return true; }
                 if(group.getMemberRank(demote) == Rank.MEMBER || group.getMemberRank(demote) == Rank.OWNER) { player.sendMessage(ChatColor.RED + "That player cannot be demoted."); return true; }
+                NameAPI.getGroupManager().getGroup(group.getName()).removeMember(demote.getUniqueId());
+                NameAPI.getGroupManager().getGroup(group.getName()).addMember(demote.getUniqueId(), GroupManager.PlayerType.MODS);
+                NameAPI.getGroupManager().getGroup(group.getName()).setDefaultGroup(player.getUniqueId());
                 group.setMemberRank(demote, Rank.MEMBER);
                 demote.sendMessage(ChatColor.RED + "You have been demoted in your group.");
                 player.sendMessage(ChatColor.GREEN + "Successfully demoted " + demote.getDisplayName() + ".");
@@ -142,11 +200,47 @@ public class GroupCommand implements CommandExecutor {
                 if(!group.hasMember(kick)) { player.sendMessage(ChatColor.RED + "That player is not in your group!"); return true; }
                 if(rank4 != Rank.OWNER && group.getMemberRank(kick) == Rank.OFFICER) { player.sendMessage(ChatColor.RED + "Only owners can kick officers in a group."); return true; }
                 if(group.getMemberRank(kick) == Rank.OWNER) { player.sendMessage(ChatColor.RED + "You cannot kick an owner from their group!"); return true; }
+                NameAPI.getGroupManager().getGroup(group.getName()).removeMember(kick.getUniqueId());
                 group.removeMember(kick);
                 kick.sendMessage(ChatColor.RED + "You have been kicked from your group!");
                 group.sendGroupMessage("SYSTEM", ChatColor.YELLOW + kick.getDisplayName() + ChatColor.RED + " has been kicked from the group.");
                 player.sendMessage(ChatColor.GREEN + "Successfully kicked " + kick.getDisplayName());
                 return true;
+            case("leave"):
+                if(group == null) { player.sendMessage(ChatColor.RED + "You aren't in a group."); return true; }
+                Rank rank5 = group.getMemberRank(player);
+                if(rank5 == Rank.OWNER) { player.sendMessage(ChatColor.RED + "You cannot leave a group you own."); return true; }
+                NameAPI.getGroupManager().getGroup(group.getName()).removeMember(player.getUniqueId());
+                group.removeMember(player);
+                player.sendMessage(ChatColor.RED + "You have left the group.");
+                group.sendGroupMessage("SYSTEM", ChatColor.YELLOW + player.getDisplayName() + ChatColor.RED + " has left the group.");
+                return true;
+            case("list"):
+                if(group == null) { player.sendMessage(ChatColor.RED + "You aren't in a group."); return true; }
+                player.sendMessage(ChatColor.DARK_GRAY + "-=<" + ChatColor.GOLD + group.getName() + "'s" + ChatColor.DARK_GRAY + " Members>=- \n");
+                for(OfflinePlayer member : group.getMembers()) {
+                    player.sendMessage(ChatColor.GOLD + member.getName() + ChatColor.DARK_GRAY + " - " + ChatColor.AQUA + group.getMemberRank(member).name());
+                }
+                return true;
+            case("info"):
+                if(args.length < 2 && group == null) { player.sendMessage(ChatColor.RED + "You are not in a group, specify a group for information."); return true; }
+                try {
+                    Group infoGroup = EstraCorePlugin.instance.getGroupManager().getGroupByName(args[1]);
+                    if (infoGroup == null) {
+                        player.sendMessage(ChatColor.RED + "The group you specified does not exist.");
+                        return true;
+                    }
+                    player.sendMessage(ChatColor.DARK_GRAY + "Group Name: " + ChatColor.YELLOW + infoGroup.getName()
+                            + "\n" + ChatColor.DARK_GRAY + "Members: " + ChatColor.YELLOW + infoGroup.getMembers().size()
+                            + "\n" + ChatColor.DARK_GRAY + "Owner: " + ChatColor.YELLOW + infoGroup.getOwner().getName());
+                    return true;
+                    //Ex below only occurs if the person doesn't put an arg.
+                } catch (IndexOutOfBoundsException ex) {
+                    player.sendMessage(ChatColor.DARK_GRAY + "Group Name: " + ChatColor.YELLOW + group.getName()
+                            + "\n" + ChatColor.DARK_GRAY + "Members: " + ChatColor.YELLOW + group.getMembers().size()
+                            + "\n" + ChatColor.DARK_GRAY + "Owner: " + ChatColor.YELLOW + group.getOwner().getName());
+                    return true;
+                }
             default:
         }
         return false;

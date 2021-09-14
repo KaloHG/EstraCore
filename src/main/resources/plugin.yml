@@ -4,7 +4,7 @@ main: net.estra.EstraCore.EstraCorePlugin
 version: 1.0
 authors: [Kayla]
 website: estrapvp.net
-depend: [CivModCore]
+depend: [CivModCore, Citadel]
 commands:
   group:
     usage: "/group help"

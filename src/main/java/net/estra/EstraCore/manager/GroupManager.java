@@ -30,6 +30,15 @@ public class GroupManager {
         if(groups.contains(group)) { groups.remove(group); }
     }
 
+    public Group getGroupByName(String name) {
+        for(Group group : groups) {
+            if(group.getName().equalsIgnoreCase(name)) {
+                return group;
+            }
+        }
+        return null;
+    }
+
     public boolean isPlayerInGroup(OfflinePlayer player) {
         for(Group group : groups) {
             if(group.hasMember(player)) { return true; }

@@ -17,12 +17,15 @@ public class EstraCoreConfig {
 
     private boolean groupLogging;
 
+    private String reinWorld;
+
     private List<ReinforcementType> loadedTypes;
 
     public EstraCoreConfig(Configuration config) {
         this.config = config;
 
         loadChatConfig();
+        loadReinConfig();
     }
 
     private void loadChatConfig() {
@@ -33,6 +36,9 @@ public class EstraCoreConfig {
 
     private void loadReinConfig() {
         ConfigurationSection citCfg = config.getConfigurationSection("reinforcements");
+
+        reinWorld = citCfg.getString("world");
+        EstraCorePlugin.instance.getLogger().info("ReinWorld: " + reinWorld);
 
         //parse types.
         ConfigurationSection types = citCfg.getConfigurationSection("types");
@@ -59,4 +65,8 @@ public class EstraCoreConfig {
     public boolean isGroupLoggingEnabled() { return groupLogging; }
 
     public List<ReinforcementType> getLoadedTypes() { return loadedTypes; }
+
+    public String getReinWorld() {
+        return reinWorld;
+    }
 }
