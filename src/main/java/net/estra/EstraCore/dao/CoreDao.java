@@ -6,7 +6,7 @@ import vg.civcraft.mc.civmodcore.dao.ManagedDatasource;
 public class CoreDao extends ManagedDatasource {
     public CoreDao(ACivMod plugin, String user, String pass, String host, int port, String database, int poolSize, long connectionTimeout, long idleTimeout, long maxLifetime) {
         super(plugin, user, pass, host, port, database, poolSize, connectionTimeout, idleTimeout, maxLifetime);
-
+        prepareMigrations();
         updateDatabase();
     }
 
@@ -17,6 +17,6 @@ public class CoreDao extends ManagedDatasource {
      * - SNITCH table (Snitches)
      */
     private void prepareMigrations() {
-
+        registerMigration(0, false,"CREATE TABLE IF NOT EXISTS groups (`owner` VARCHAR(100) NOT NULL, `groupname` VARCHAR(100) NOT NULL, `members` LONGTEXT NOT NULL);");
     }
 }
